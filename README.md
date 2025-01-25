@@ -30,10 +30,11 @@ Clone this repository and install dependencies:
 ```bash  
 git clone <repository_link>  
 cd <project_folder>  
-pip install -r requirements.txt  
 ```
 
 ## Run the Code
+- Start by executing the script script_far_final.R. It contains the code to produce statistics and plots for a mixture of gaussians.
+- Then you can run the script script_close_final.R expect the last 2 lines that should not be ran before analyzing the results produced by the rest of the code because it will make the console unreadable. This file contains the code to produce statistics for an other mixture of gaussians that are closer than in the file script_far_final.R.
 - Access datasets or generate simulations.
 - Execute scripts for Bayesian cluster analysis.
 
