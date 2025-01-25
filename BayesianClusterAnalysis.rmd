@@ -1,0 +1,70 @@
+---
+title: "Bayesian cluster analysis: Point estimation and credible balls"
+author: "Théo Moret, Rémi Calvet & Augustin Cablant"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## Introduction
+
+This document gathers the code for our final project in Bayesian Statistics, based on the paper **"Bayesian cluster analysis: Point estimation and credible balls"**, available at [https://arxiv.org/abs/1505.03339](https://arxiv.org/abs/1505.03339).  
+The objective of this project is to implement and analyze the clustering methods proposed in the paper.
+We invite the reader to refer to our summary to learn about the concepts of clustering, variational inference, credible ball, Binder's loss, and more.
+
+---
+
+## Imports
+
+Below are the necessary libraries and installations for the project:
+
+```{r imports, include=TRUE}
+# Install and load necessary libraries
+install.packages("devtools")
+library(devtools)
+devtools::install_github("sarawade/mcclust.ext")
+
+install.packages("dirichletprocess")
+install.packages("ggplot2") # For visualization
+
+library(ggplot2)
+library(dirichletprocess)
+library(mcclust.ext)
+
+# Set seed for reproducibility
+set.seed(123)
+```
+---
+
+## Synthetic Data Generation
+
+In this section, we generate a synthetic dataset for a Gaussian mixture model with four clusters. Each cluster is defined by:
+
+- **Number of samples per cluster**: \( n/4 \), where \( n = 200 \) (total number of samples).
+- **Cluster means (\( \mu \))**: \((-1, -1)\), \((1, -1)\), \((-1, 1)\), \((1, 1)\), ensuring clusters are closely spaced.
+- **Covariance matrices (\( \Sigma \))**: Identity matrices for all clusters, making the distributions isotropic.
+
+We combine the generated samples from all clusters to form our dataset, with true cluster labels stored alongside the data points. The resulting dataframe contains:
+
+```{r imports, include=TRUE}
+# Parameters for the mixture model
+n <- 200 # Total number of samples
+mu <- list(c(-1, -1), c(1, -1), c(-1, 1), c(1, 1)) # Cluster centers
+sigma <- list(diag(c(1, 1)), diag(c(1, 1)), diag(c(1, 1)), diag(c(1, 1))) # Covariance matrices
+n_clusters <- length(mu)
+
+# Generate the mixture of 4 Gaussians
+data <- do.call(rbind, lapply(1:n_clusters, function(i) {
+  mvtnorm::rmvnorm(n / n_clusters, mean = mu[[i]], sigma = sigma[[i]])
+}))
+
+# Get true labels
+true_labels <- unlist(lapply(1:n_clusters, function(i) {
+  rep(i, n / n_clusters)
+}))
+
+# Create the dataframe
+df <- as.data.frame(data)
+colnames(df) <- c("X1", "X2")
+df$true_cluster <- as.factor(true_labels)
+```
+---
