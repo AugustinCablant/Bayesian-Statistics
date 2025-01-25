@@ -6,4 +6,4 @@ packages <- c(
 
 install.packages(setdiff(packages, rownames(installed.packages())))
 
-devtools::install_github("sarawade/mcclust.ext")
+#devtools::install_github("sarawade/mcclust.ext")

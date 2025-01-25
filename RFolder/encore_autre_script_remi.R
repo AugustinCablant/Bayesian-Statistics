@@ -1,14 +1,15 @@
 
 # CHANGE THE PATH
-setwd("C:/Users/rems9/OneDrive - GENES/Bureau/Etudes/ENSAE/3A/bayesian_statistics/projet_bayesian") 
+#setwd("C:/Users/rems9/OneDrive - GENES/Bureau/Etudes/ENSAE/3A/bayesian_statistics/projet_bayesian") 
 
+setwd("/Users/augustincablant/Documents/GitHub/Bayesian-Statistics")
 # Install necessary packages
 
-install.packages("devtools")
+#install.packages("devtools")
 library(devtools)
-devtools::install_github("sarawade/mcclust.ext")
-install.packages("dirichletprocess")
-install.packages("ggplot2") # For visualization
+#devtools::install_github("sarawade/mcclust.ext")
+#install.packages("dirichletprocess")
+#install.packages("ggplot2") # For visualization
 library(ggplot2)
 library(dirichletprocess)
 library(mcclust.ext)
@@ -52,10 +53,10 @@ dp <- DirichletProcessMvnormal(
 # You can uncomment the following lines if you want but it takes a long time to run 
 #so you can just import the already ran result stored in a file.
 # Fit the model (10000 iterations)
-dp <- Fit(dp, its = 10000)   
+#dp <- Fit(dp, its = 10000)   
 
 # Save the fitted Dirichlet Process object
-saveRDS(dp, file = "dp_model10000_bien.rds")
+#saveRDS(dp, file = "dp_model10000_bien.rds")
 
 # Load the saved Dirichlet Process object to run the script faster. Comment next line if you uncommented lines above
 dp <- readRDS("dp_model10000_bien.rds")
