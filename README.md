@@ -1,7 +1,11 @@
 # Bayesian Cluster Analysis: Point Estimation and Credible Balls  
 
 ## Project Overview  
-This project applies Bayesian cluster analysis, inspired by the methodology presented in the paper *"Bayesian cluster analysis: Point estimation and credible balls"*. The objective is to analyze a clustering problem using Bayesian techniques, with real or simulated data, to understand uncertainty in cluster assignments while leveraging advanced statistical methods.  
+This code serves as the foundation for the Bayesian Statistics project report, which is based on the article "Bayesian Cluster Analysis: Point Estimation and Credible Balls" by Sara Wade and Zoubin Ghahramani. In the report, we detail the Bayesian framework applied to clustering problems. Specifically, we emphasize the importance of identifying an effective point estimation and a relevant measure of uncertainty.
+
+The paper introduces the Variation of Information (VI) metric as a suitable loss function and contrasts it with the traditional Binder's loss. To explore these theoretical differences, we implement numerical simulations that highlight the advantages and limitations of each approach.
+
+In the first experiment, the VI loss successfully identifies an appropriate number of clusters. However, in the second experiment (very close true clusters), the VI loss fails to determine the correct number of clusters. But, we leverage the Bayesian framework to perform a quantitative analysis of the credible ball, shedding light on the result and its implications.
 
 
 
