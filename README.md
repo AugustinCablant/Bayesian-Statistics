@@ -3,16 +3,7 @@
 ## Project Overview  
 This project applies Bayesian cluster analysis, inspired by the methodology presented in the paper *"Bayesian cluster analysis: Point estimation and credible balls"*. The objective is to analyze a clustering problem using Bayesian techniques, with real or simulated data, to understand uncertainty in cluster assignments while leveraging advanced statistical methods.  
 
-## Project Goals  
-1. **Define the Problem**: Clearly outline the clustering problem and its significance.  
-2. **Apply Bayesian Techniques**: Use appropriate Bayesian methods seen in class to analyze the problem.  
-3. **Methodology Explanation**: Explain the Bayesian technique selected, its motivation, and its relation to the problem.  
-4. **Computational Implementation**: Describe the computational methods used and challenges encountered.  
-5. **Interpret the Results**: Present and interpret the findings, comparing them to results obtained via a frequentist approach.  
 
-
-## Project Structure  
-A runnable R markdown "BayesianClusterAnalysis" with all the necessary descriptions.
 
 ## Deliverables  
 - **Final Report**: A detailed document covering the problem definition, methodology, computational details, results, and comparisons.  
@@ -33,6 +24,7 @@ cd <project_folder>
 ```
 
 ## Run the Code
+- Set your path at the begining of the two scripts
 - Note that each file takes approximatively 40 mins to run depending on your computing power.
 - Start by executing the script script_far_final.R. It contains the code to produce statistics and plots for a mixture of gaussians.
 - Then you can run the script script_close_final.R expect the last 2 lines that should not be ran before analyzing the results produced by the rest of the code because it will make the console unreadable. This file contains the code to produce statistics for an other mixture of gaussians that are closer than in the file script_far_final.R.
