@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-## Introduction
+# Introduction
 
 This document gathers the code for our final project in Bayesian Statistics, based on the paper **"Bayesian cluster analysis: Point estimation and credible balls"**, available at [https://arxiv.org/abs/1505.03339](https://arxiv.org/abs/1505.03339).  
 The objective of this project is to implement and analyze the clustering methods proposed in the paper.
@@ -13,7 +13,7 @@ We invite the reader to refer to our summary to learn about the concepts of clus
 
 ---
 
-## Imports
+# Imports
 
 Below are the necessary libraries and installations for the project:
 
@@ -33,7 +33,6 @@ library(mcclust.ext)
 # Set seed for reproducibility
 set.seed(123)
 ```
----
 
 ## Synthetic Data Generation
 
@@ -45,11 +44,11 @@ In this section, we generate a synthetic dataset for a Gaussian mixture model wi
 
 We combine the generated samples from all clusters to form our dataset, with true cluster labels stored alongside the data points. The resulting dataframe contains:
 
-```{r imports, include=TRUE}
+```{r Synthetic Data Generation, include=TRUE}
 # Parameters for the mixture model
-n <- 200 # Total number of samples
-mu <- list(c(-1, -1), c(1, -1), c(-1, 1), c(1, 1)) # Cluster centers
-sigma <- list(diag(c(1, 1)), diag(c(1, 1)), diag(c(1, 1)), diag(c(1, 1))) # Covariance matrices
+n <- 200 
+mu <- list(c(-1, -1), c(1, -1), c(-1, 1), c(1, 1)) 
+sigma <- list(diag(c(1, 1)), diag(c(1, 1)), diag(c(1, 1)), diag(c(1, 1))) 
 n_clusters <- length(mu)
 
 # Generate the mixture of 4 Gaussians
@@ -66,5 +65,410 @@ true_labels <- unlist(lapply(1:n_clusters, function(i) {
 df <- as.data.frame(data)
 colnames(df) <- c("X1", "X2")
 df$true_cluster <- as.factor(true_labels)
+
+# Initialize Dirichlet Process, put a Gam(1,1) hyperprior on alpha as in the article
+dp <- DirichletProcessMvnormal(
+  y = data,
+  alphaPriors = c(1, 1),
+  numInitialClusters = 1
+)
 ```
+---
+
+## Dirichlet Process Model Fitting
+
+In this section, we fit a Dirichlet Process model to our dataset. Since fitting the model with 10,000 iterations can be computationally expensive, we provide the option to directly load a pre-fitted model. This allows for faster execution of the script while retaining reproducibility.
+
+### Steps:
+1. **Fitting the Dirichlet Process model**: The model is trained with 10,000 iterations (can be uncommented if needed).
+2. **Saving the model**: The fitted model is saved to a file for future use.
+3. **Loading the pre-fitted model**: For convenience, we load the pre-trained model directly.
+4. **Burn-in phase**: The first 1,000 iterations are discarded to ensure convergence of the Markov Chain.
+5. **Posterior sampling**: Cluster assignments are extracted from the posterior distribution, and a pairwise similarity matrix is computed.
+
+```{r Dirichlet Process Model Fitting, include=TRUE}
+##################################################################
+#dp <- Fit(dp, its = 10000)   
+#saveRDS(dp, file = "dp_model10000_bien_closer.rds")
+##################################################################
+
+# Load the saved Dirichlet Process object to run the script faster
+dp <- readRDS("dp_model10000_bien_closer.rds")
+
+# Burn-in phase
+burn_in <- 1000  # Number of iterations to discard
+dp_samples <- dp$posteriorParams[-(1:burn_in)]
+
+# Extract posterior cluster assignments
+posterior_draws <- do.call(rbind, dp$labelsChain)
+
+# Burn-in: Remove the initial iterations
+posterior_draws_burned <- posterior_draws[-(1:burn_in), ]
+
+# Check the dimensions of the processed draws
+print(dim(posterior_draws_burned))
+
+# Compute the pairwise similarity matrix
+psm <- comp.psm(posterior_draws_burned)
+```
+---
+
+## Variational Inference (VI) for Clustering
+
+In this section, we leverage Variational Inference (VI) to compute the optimal partition of the data. VI is used as a loss function to minimize the expected variation of information between the true and predicted clusters.
+
+### Objective
+Using VI as a loss function leads to the following optimal partition \( \mathbf{c}^* \):
+\[
+c^* = \arg\min_{\hat{c}} \mathbb{E}[\text{VI}(c, \hat{c}) \mid \mathcal{D}] ~,
+\]
+which is expanded as:
+\[
+c^* = \arg\min_{\hat{c}} 
+\sum_{n=1}^N \log\left(\sum_{n'=1}^N \mathbf{1}(\hat{c}_{n'} = \hat{c}_n)\right) 
+- 2 \sum_{n=1}^N \mathbb{E}\left[\log\left(\sum_{n'=1}^N \mathbf{1}(c_{n'} = c_n, \hat{c}_{n'} = \hat{c}_n)\right) \mid \mathcal{D}\right]~.
+\]
+
+### Steps:
+1. **Find the representative partition using minVI**: This minimizes the expected VI to find the best clustering labels.
+2. **Add clustering labels to the data**: The resulting cluster labels are appended to the dataset for visualization.
+3. **Visualize the clustering results**: A scatter plot shows the clusters and their representative labels.
+4. **Compute and visualize the credible ball**: The credible ball provides a visualization of uncertainty in the clustering.
+5. **Add confidence ellipses**: Ellipses around clusters illustrate the mean and covariance of points within each cluster.
+
+```{r Variational Inference (VI) for Clustering, include=TRUE}
+# Compute the representative partition using minVI
+vi_partition <- minVI(psm, posterior_draws_burned, method = "all", include.greedy = TRUE)
+summary(vi_partition)
+
+# Extract clustering labels from the greedy solution
+final_clusters <- vi_partition$cl["greedy", ]
+
+# Add clustering labels to the data
+df$vi_cluster <- as.factor(final_clusters)
+
+# Visualize the clustering results
+library(ggplot2)
+ggplot(df, aes(x = X1, y = X2, color = vi_cluster)) +
+  geom_point() +
+  labs(title = "Representative Clustering (VI) (Greedy)") +
+  theme_minimal()
+
+# Compute the credible ball for clustering
+credible_ball <- credibleball(vi_partition$cl["greedy", ], posterior_draws_burned)
+
+# View the summary of the credible ball
+summary(credible_ball)
+
+# Plot the credible ball
+plot(credible_ball, data = df[, c("X1", "X2")])
+
+# Compute cluster means and covariances for ellipses
+ellipses_data <- lapply(unique(final_clusters), function(cluster) {
+  cluster_data <- df[df$vi_cluster == cluster, c("X1", "X2")]
+  list(
+    mean = colMeans(cluster_data),
+    cov = cov(cluster_data),
+    cluster = cluster
+  )
+})
+
+# Function to generate ellipse points
+generate_ellipse <- function(mean, cov, cluster, n = 100) {
+  theta <- seq(0, 2 * pi, length.out = n)
+  circle <- cbind(cos(theta), sin(theta))
+  ellipse <- t(chol(cov)) %*% t(circle) + mean
+  data.frame(X1 = ellipse[1, ], X2 = ellipse[2, ], cluster = cluster)
+}
+
+# Combine ellipses into a single data frame
+ellipses_df <- do.call(rbind, lapply(ellipses_data, function(params) {
+  generate_ellipse(params$mean, params$cov, params$cluster)
+}))
+
+# Plot the data with ellipses
+ggplot(df, aes(x = X1, y = X2, color = vi_cluster)) +
+  geom_point() +
+  geom_path(data = ellipses_df, aes(x = X1, y = X2, group = cluster, color = as.factor(cluster)), size = 1) +
+  labs(title = "Clustering Results with Confidence Ellipses", color = "Cluster") +
+  theme_minimal()
+
+```
+---
+
+## Binder's Loss for Clustering
+
+The Binder's loss is a metric on partition space that is invariant to permutation and re-labeling, two desirable properties for loss functions. Binder's loss is defined as:
+\[
+B(c, \hat{c}) = \sum_{n < n'} l_1 \mathbf{1}(c_n = c_{n'}) \mathbf{1}(\hat{c}_n \neq \hat{c}_{n'}) + l_2 \mathbf{1}(c_n \neq c_{n'}) \mathbf{1}(\hat{c}_n = \hat{c}_{n'}) ~,
+\]
+where:
+- The first term penalizes points that are in the same true cluster but are assigned to different predicted clusters.
+- The second term penalizes points that are in different true clusters but are assigned to the same predicted cluster.
+
+### Steps:
+1. **Compute the representative partition using Binder's loss**: We use the `minbinder.ext` method to minimize Binder's loss and find the optimal clustering solution.
+2. **Add clustering labels to the dataset**: Once the labels are assigned, they are added to the dataset for further analysis.
+3. **Visualize the clustering**: A scatter plot is generated to show the clustering results.
+4. **Compute and visualize the credible ball**: The credible ball helps visualize the uncertainty in the clustering solution.
+5. **Add confidence ellipses**: Ellipses are plotted to represent the uncertainty and covariance within each cluster.
+
+```{r Binder's Loss for Clustering, include=TRUE}
+# Compute the representative partition using Binder's loss
+binder_partition <- minbinder.ext(psm, posterior_draws_burned, method = "all", include.greedy = TRUE)
+summary(binder_partition)
+
+# Extract the greedy clustering labels from binder_partition$cl
+final_clusters <- binder_partition$cl["greedy", ]
+
+# Add the final clustering labels to the data frame
+df$binder_cluster <- as.factor(final_clusters)
+
+# Visualize the clustering results
+library(ggplot2)
+ggplot(df, aes(x = X1, y = X2, color = binder_cluster)) +
+  geom_point() +
+  labs(title = "Representative Clustering (Binder's loss) (Greedy)") +
+  theme_minimal()
+
+# Compute the credible ball for the clustering
+credible_ball_binder <- credibleball(binder_partition$cl["greedy", ], posterior_draws_burned, c.dist = "Binder")
+
+# View the summary of the credible ball
+summary(credible_ball_binder)
+
+# Plot the credible ball
+plot(credible_ball_binder, data = df[, c("X1", "X2")])
+
+# Compute cluster means and covariances for ellipses
+ellipses_data <- lapply(unique(final_clusters), function(cluster) {
+  cluster_data <- df[df$binder_cluster == cluster, c("X1", "X2")]
+  list(
+    mean = colMeans(cluster_data),
+    cov = cov(cluster_data),
+    cluster = cluster
+  )
+})
+
+# Function to generate ellipse points
+generate_ellipse <- function(mean, cov, cluster, n = 100) {
+  theta <- seq(0, 2 * pi, length.out = n)
+  circle <- cbind(cos(theta), sin(theta))
+  ellipse <- t(chol(cov)) %*% t(circle) + mean
+  data.frame(X1 = ellipse[1, ], X2 = ellipse[2, ], cluster = cluster)
+}
+
+# Combine ellipses into a single data frame
+ellipses_df <- do.call(rbind, lapply(ellipses_data, function(params) {
+  generate_ellipse(params$mean, params$cov, params$cluster)
+}))
+
+# Plot the data with ellipses
+ggplot(df, aes(x = X1, y = X2, color = binder_cluster)) +
+  geom_point() +
+  geom_path(data = ellipses_df, aes(x = X1, y = X2, group = cluster, color = as.factor(cluster)), size = 1) +
+  labs(title = "Clustering Results with Credible Ellipses (Binder's Loss)", color = "Cluster") +
+  theme_minimal()
+```
+---
+
+# Handling Close Clusters in Partitioning
+When applying clustering methods, such as **Binder's Loss** or **Variational Inference (VI)**, one common challenge is dealing with clusters that are very close to each other. This occurs when the data points within different clusters have similar characteristics or are located in a region of the feature space that is not easily separable. In this section, we will discuss the implications of this proximity for clustering algorithms and explore strategies to improve the clustering performance.
+
+## Generating and Fitting a Dirichlet Process Mixture Model
+In this section, we generate a mixture model of 4 Gaussian distributions, each with specific mean and covariance parameters. We then fit a Dirichlet Process Mixture Model (DPMM) to the data to infer the cluster structure. We use the same method as before. 
+```{r Generating and Fitting a Dirichlet Process Mixture Model, include=TRUE}
+n <- 200 
+mu <- list(c(-2, -2), c(2, -2), c(-2, 2), c(2, 2)) 
+sigma <- list(diag(c(1, 1)), diag(c(1, 1)), diag(c(1, 1)), diag(c(1, 1))) 
+n_clusters <- length(mu)
+
+data <- do.call(rbind, lapply(1:n_clusters, function(i) {
+  mvtnorm::rmvnorm(n / n_clusters, mean = mu[[i]], sigma = sigma[[i]])
+}))
+
+
+true_labels <- unlist(lapply(1:n_clusters, function(i) {
+  rep(i, n / n_clusters)
+}))
+
+df <- as.data.frame(data)
+colnames(df) <- c("X1", "X2")
+df$true_cluster <- as.factor(true_labels)
+
+dp <- DirichletProcessMvnormal(
+  y = data,
+  alphaPriors = c(1, 1),
+  numInitialClusters = 1
+)
+
+#############################################
+#dp <- Fit(dp, its = 10000)   
+#saveRDS(dp, file = "dp_model10000_bien.rds")
+#############################################
+
+dp <- readRDS("dp_model10000_bien.rds")
+
+# Burn in 1000 iterations
+burn_in <- 1000  # Number of iterations to discard
+dp_samples <- dp$posteriorParams[-(1:burn_in)]
+
+# Extract posterior cluster assignments
+posterior_draws <- do.call(rbind, dp$labelsChain)
+
+# Apply the burn in
+posterior_draws_burned <- posterior_draws[-(1:burn_in), ]
+
+# Check the dimensions
+print(dim(posterior_draws_burned))
+
+# Compute the pairwise similarity matrix
+psm <- comp.psm(posterior_draws_burned)
+
+```
+---
+
+## **VI Clustering Analysis**
+
+In this section, we compute the **Variation of Information (VI)** to evaluate and visualize the clustering obtained from the Dirichlet Process Mixture Model (DPMM).
+
+#### **Finding the Representative Partition using minVI**
+
+We use the `minVI` function to compute the representative partition based on the posterior cluster assignments. This method identifies a clustering that minimizes the variation of information between the true clusters and the inferred ones. We use the "greedy" method for clustering, which tries to find a consensus partition by optimizing a local objective.
+
+```{VI Clustering Analysis, echo=TRUE, message=FALSE, warning=FALSE}
+# Find the representative partition using minVI
+vi_partition <- minVI(psm, posterior_draws_burned, method = "all", include.greedy = TRUE)
+summary(vi_partition)
+
+# Extract the greedy clustering labels from vi_partition$cl
+final_clusters <- vi_partition$cl["greedy", ]
+
+# Add the final clustering labels to the data frame
+df$vi_cluster <- as.factor(final_clusters)
+
+# Visualize the clustering results
+library(ggplot2)
+ggplot(df, aes(x = X1, y = X2, color = vi_cluster)) +
+  geom_point() +
+  labs(title = "Representative Clustering (VI) (Greedy)") +
+  theme_minimal()
+
+# Compute the credible ball for the clustering
+credible_ball <- credibleball(vi_partition$cl["greedy", ], posterior_draws_burned)
+
+# View the summary of the credible ball
+summary(credible_ball)
+
+# Plot the credible ball
+plot(credible_ball, data = df[, c("X1", "X2")])
+
+# Compute cluster means and covariances for ellipses
+ellipses_data <- lapply(unique(final_clusters), function(cluster) {
+  cluster_data <- df[df$vi_cluster == cluster, c("X1", "X2")]
+  list(
+    mean = colMeans(cluster_data),
+    cov = cov(cluster_data),
+    cluster = cluster
+  )
+})
+
+# Create a function to generate ellipse points
+generate_ellipse <- function(mean, cov, cluster, n = 100) {
+  theta <- seq(0, 2 * pi, length.out = n)
+  circle <- cbind(cos(theta), sin(theta))
+  ellipse <- t(chol(cov)) %*% t(circle) + mean
+  data.frame(X1 = ellipse[1, ], X2 = ellipse[2, ], cluster = cluster)
+}
+
+# Combine ellipses into a single data frame
+ellipses_df <- do.call(rbind, lapply(ellipses_data, function(params) {
+  generate_ellipse(params$mean, params$cov, params$cluster)
+}))
+
+# Plot the data with ellipses
+ggplot(df, aes(x = X1, y = X2, color = vi_cluster)) +
+  geom_point() +
+  geom_path(data = ellipses_df, aes(x = X1, y = X2, group = cluster, color = as.factor(cluster)), size = 1) +
+  labs(title = "Clustering Results", color = "Cluster") +
+  theme_minimal()
+```
+---
+
+## **Clustering with Binder's Loss**
+
+In this section, we compute and visualize the clustering results using **Binder's loss** instead of **Variation of Information (VI)**. Binder's loss is another method for evaluating the clustering structure, and we apply it to assess the fit of the Dirichlet Process Mixture Model (DPMM).
+
+#### **Finding the Representative Partition Using Binder's Loss**
+
+We use the `minbinder.ext` function to compute the representative partition based on Binder's loss, which optimizes the clustering based on a different measure of discrepancy. Similar to the VI method, we use the "greedy" method to obtain the clustering labels.
+
+```{r Clustering with Binder's Loss, echo=TRUE, message=FALSE, warning=FALSE}
+# Find the representative partition using Binder's loss
+binder_partition <- minbinder.ext(psm, posterior_draws_burned, method = "all", include.greedy = TRUE)
+summary(binder_partition)
+
+# Extract the greedy clustering labels from binder_partition$cl
+final_clusters <- binder_partition$cl["greedy", ]
+
+# Add the final clustering labels to the data frame
+df$binder_cluster <- as.factor(final_clusters)
+
+# Visualize the clustering results
+library(ggplot2)
+ggplot(df, aes(x = X1, y = X2, color = binder_cluster)) +
+  geom_point() +
+  labs(title = "Representative Clustering (Binder's Loss) (Greedy)") +
+  theme_minimal()
+
+# Compute the credible ball for the clustering
+credible_ball_binder <- credibleball(binder_partition$cl["greedy", ], posterior_draws_burned, c.dist = "Binder")
+
+# View the summary of the credible ball
+summary(credible_ball_binder)
+
+# Plot the credible ball
+plot(credible_ball_binder, data = df[, c("X1", "X2")])
+
+# Optional: Ellipses for Binder's loss clustering
+ellipses_data <- lapply(unique(final_clusters), function(cluster) {
+  cluster_data <- df[df$binder_cluster == cluster, c("X1", "X2")]
+  list(
+    mean = colMeans(cluster_data),
+    cov = cov(cluster_data),
+    cluster = cluster
+  )
+})
+
+# Create a function to generate ellipse points
+generate_ellipse <- function(mean, cov, cluster, n = 100) {
+  theta <- seq(0, 2 * pi, length.out = n)
+  circle <- cbind(cos(theta), sin(theta))
+  ellipse <- t(chol(cov)) %*% t(circle) + mean
+  data.frame(X1 = ellipse[1, ], X2 = ellipse[2, ], cluster = cluster)
+}
+
+# Combine ellipses into a single data frame
+ellipses_df <- do.call(rbind, lapply(ellipses_data, function(params) {
+  generate_ellipse(params$mean, params$cov, params$cluster)
+}))
+
+# Plot the data with ellipses
+ggplot(df, aes(x = X1, y = X2, color = binder_cluster)) +
+  geom_point() +
+  geom_path(data = ellipses_df, aes(x = X1, y = X2, group = cluster, color = as.factor(cluster)), size = 1) +
+  labs(title = "Clustering Results with Credible Ellipses (Binder's Loss)", color = "Cluster") +
+  theme_minimal()
+```
+---
+
+## Conclusion
+
+In this work, we explored different probabilistic clustering methods to partition a dataset into representative clusters using two loss criteria: **Variation of Information (VI)** and **Binder's loss**. These methods were applied to a Dirichlet Process Mixture Model (DPMM) to analyze the data structure through optimized partitions.
+
+The results showed that both methods provide similar yet distinct partitions, offering different perspectives on the data structure.
+
+These probabilistic clustering techniques and their extensions, such as "credible balls" and ellipses, offer a robust and informative approach for analyzing datasets with inherent uncertainty, particularly (in our case) in mixture models.
+
+For future analyses, it would be interesting to apply these methods to other datasets and compare the performance of VI and Binder's loss on real-world cases. 
 ---
