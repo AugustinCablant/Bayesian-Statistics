@@ -10,34 +10,9 @@ This project applies Bayesian cluster analysis, inspired by the methodology pres
 4. **Computational Implementation**: Describe the computational methods used and challenges encountered.  
 5. **Interpret the Results**: Present and interpret the findings, comparing them to results obtained via a frequentist approach.  
 
-## Key Features  
-- **Data**: Analysis using either a real-world dataset or simulated data.  
-- **Methodology**: Exploration of Bayesian techniques such as posterior distributions, point estimation, and credible intervals (credible balls).  
-- **Comparison**: Evaluate and contrast Bayesian and frequentist results.  
 
 ## Project Structure  
-
-1. **Problem Statement**:  
-   - Introduction to the clustering problem.  
-   - Explanation of the importance and relevance of the chosen dataset or simulation setup.  
-
-2. **Bayesian Methodology**:  
-   - Overview of the Bayesian cluster analysis approach.  
-   - Justification for choosing Bayesian methods over other approaches.  
-   - Explanation of point estimation and credible balls in clustering contexts.  
-
-3. **Computational Implementation**:  
-   - Description of algorithms used (e.g., MCMC, variational inference, etc.).  
-   - Discussion of challenges (e.g., convergence issues, computational complexity).  
-
-4. **Results and Interpretation**:  
-   - Presentation of clustering results.  
-   - Interpretation of the posterior distribution and credible intervals.  
-   - Comparison with frequentist clustering methods (e.g., k-means, hierarchical clustering).  
-
-5. **Conclusion**:  
-   - Summary of findings.  
-   - Insights into the strengths and limitations of the Bayesian approach.  
+A runnable R markdown "BayesianClusterAnalysis" with all the necessary descriptions.
 
 ## Deliverables  
 - **Final Report**: A detailed document covering the problem definition, methodology, computational details, results, and comparisons.  
@@ -48,7 +23,7 @@ This project applies Bayesian cluster analysis, inspired by the methodology pres
 
 ### Prerequisites  
 - Knowledge of Bayesian methods (as covered in class).  
-- Tools: Python (PyMC3/NumPyro/Stan) or R (rstan/Bayesian packages).  
+- Tools: R. 
 
 ### Installation  
 Clone this repository and install dependencies:  
