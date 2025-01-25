@@ -64,7 +64,7 @@ pip install -r requirements.txt
 
 ## Authors and Contributions
 
-Team Members: Théo Moret, Rémi ?, Augustin Cablant
+Team Members: Théo Moret, Rémi Calvet, Augustin Cablant
 Instructor: Anna Simoni 
 
 ## References  
