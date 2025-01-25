@@ -80,8 +80,6 @@ print(dim(posterior_draws_burned))
 psm <- comp.psm(posterior_draws_burned)
 
 
-
-
 ########## HERE WE DO VI, WE WILL DO BINDER AFTER
 
 # Find the representative partition using minVI

@@ -19,13 +19,7 @@ Below are the necessary libraries and installations for the project:
 
 ```{r imports, include=TRUE}
 # Install and load necessary libraries
-install.packages("devtools")
 library(devtools)
-devtools::install_github("sarawade/mcclust.ext")
-
-install.packages("dirichletprocess")
-install.packages("ggplot2") # For visualization
-
 library(ggplot2)
 library(dirichletprocess)
 library(mcclust.ext)

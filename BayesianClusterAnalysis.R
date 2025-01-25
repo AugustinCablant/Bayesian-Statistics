@@ -21,6 +21,8 @@ data <- do.call(rbind, lapply(1:n_clusters, function(i) {
   mvtnorm::rmvnorm(n / n_clusters, mean = mu[[i]], sigma = sigma[[i]])
 }))
 
+plot(data[,1],data[,2],xlab="x1",ylab="x2")
+
 # Get true labels
 true_labels <- unlist(lapply(1:n_clusters, function(i) {
   rep(i, n / n_clusters)
@@ -146,7 +148,6 @@ ggplot(df, aes(x = X1, y = X2, color = binder_cluster)) +
 
 
 
-
 # Compute the credible ball for the clustering
 credible_ball_binder <- credibleball(binder_partition$cl["greedy", ], posterior_draws_burned, c.dist = "Binder")
 
@@ -155,34 +156,3 @@ summary(credible_ball)
 
 # Plot the credible ball
 plot(credible_ball_binder, data = df[, c("X1", "X2")])
-
-
-
-#### ATTENTION ICI LES PLOTS SUIVANTS SONT FOIREUX
-
-# Optional: Ellipses for Binder's loss clustering
-ellipses_data <- lapply(unique(final_clusters), function(cluster) {
-  cluster_data <- df[df$binder_cluster == cluster, c("X1", "X2")]
-  list(
-    mean = colMeans(cluster_data),
-    cov = cov(cluster_data),
-    cluster = cluster
-  )
-})
-
-generate_ellipse <- function(mean, cov, cluster, n = 100) {
-  theta <- seq(0, 2 * pi, length.out = n)
-  circle <- cbind(cos(theta), sin(theta))
-  ellipse <- t(chol(cov)) %*% t(circle) + mean
-  data.frame(X1 = ellipse[1, ], X2 = ellipse[2, ], cluster = cluster)
-}
-
-ellipses_df <- do.call(rbind, lapply(ellipses_data, function(params) {
-  generate_ellipse(params$mean, params$cov, params$cluster)
-}))
-
-ggplot(df, aes(x = X1, y = X2, color = binder_cluster)) +
-  geom_point() +
-  geom_path(data = ellipses_df, aes(x = X1, y = X2, group = cluster, color = as.factor(cluster)), size = 1) +
-  labs(title = "Clustering Results with Credible Ellipses (Binder's Loss)", color = "Cluster") +
-  theme_minimal()
